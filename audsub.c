@@ -5,10 +5,12 @@
 #include <unistd.h>
 #include <SDL2/SDL_mixer.h> // i can't program anything audio related worth shit so
 #include <SDL2/SDL.h>
+#include <errno.h>
+
 
 // Singular subtitle
 struct sub {
-    int when;   /* when to show the subtitle in ms */
+    long when;   /* when to show the subtitle in ms */
     char* what; /* the actual subtitle */
 };
 
@@ -167,6 +169,7 @@ int subproc(char* sub) {
                         repeatfreq = atoi(left(temp2,instr(temp2,',')));
                         repeatuntil = atoi(rightfrom(temp2,instr(temp2,',')+1));
                         repeatwhat = left(sub,i-2);
+                        fflush(stdout);
                         return 1; // switch to repeat mode
                         break;
                     default:
@@ -184,7 +187,14 @@ int subproc(char* sub) {
     return mode;
 }
 
-#define sleepms(a) usleep((a)*1000)
+int sleepms(long a) {
+    int ns;
+
+    ns = usleep(a*1000);
+    printf("ERR %i\n", errno); 
+    
+    return ns;
+}
 
 // y'know
 int main(int argc, char* argv[]) {
@@ -257,8 +267,8 @@ int main(int argc, char* argv[]) {
     for (i=0; i<sublen; i++) {
         subs[i] = createsub(fgetuntil(subfile, '\n'));
         if (i>0) {
-            if (subs[i].when > subs[i-1].when) {
-                printf("\n!! SUBFILE PARSE ERROR !!\nSub %i starts before the last, which will lock up the program!\n", subs[i].when);
+            if (subs[i].when < subs[i-1].when) {
+                printf("\n!! SUBFILE PARSE ERROR !!\nSub %li starts before the last, which will lock up the program!\n", subs[i].when);
                 return -5;
             }
         }
@@ -278,13 +288,14 @@ int main(int argc, char* argv[]) {
 
     Mix_PlayMusic(mediafile, 1);
     startms = SDL_GetTicks();
-    mode = 0;
-    for (i=0; i<sublen; ) {
+    mode = 0; i = 0;
+    while (i<sublen) {
         switch(mode) {
             case 0: // default
                 sleepms(( startms + subs[i].when ) - SDL_GetTicks());
                 mode = subproc(subs[i].what);
                 i++;
+                break;
             case 1: // repeating
                 if ((SDL_GetTicks()-startms) % repeatfreq == 0) {
                     printf("%s",repeatwhat);
@@ -293,6 +304,7 @@ int main(int argc, char* argv[]) {
                 if ((SDL_GetTicks()-startms) >= repeatuntil) {
                     mode = 0;
                 }
+                break;
         }
     }
 
