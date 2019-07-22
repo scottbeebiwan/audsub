@@ -27,7 +27,7 @@ char* fgetuntil(FILE* fp, char delimiter) {
     fseek(fp, skbefore, 0);
     // malloc chars and read
     chars = malloc(size);
-    if (fread(chars, size-1, 1, fp)<size-1) {printf("\nRead error in fgetuntil()\n"); exit(1);}
+    if (fread(chars, 1, size-1, fp)<size-1) {printf("\nRead error in fgetuntil()\n"); exit(1);}
     fgetc(fp);
     chars[size-1] = 0;
 
